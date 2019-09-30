@@ -1,11 +1,10 @@
-from __future__ import unicode_literals
-from future.builtins import str
-from future.builtins import bytes
-
 import os
 import sys
 import textwrap
 import warnings
+from builtins import bytes, object, str
+
+from future.builtins import bytes, str
 
 from openpay import error
 
@@ -14,7 +13,7 @@ from openpay import error
 # - Use Pycurl if it's there (at least it verifies SSL certs)
 # - Fall back to urllib2 with a warning if needed
 try:
-    import ssl, urllib2
+    import ssl, urllib.request, urllib.error, urllib.parse
     # import contextlib
 except ImportError:
     import urllib.request
@@ -92,7 +91,7 @@ class RequestsClient(HTTPClient):
                                           data=post_data,
                                           timeout=80,
                                           auth=(user, ''),
-                                          ** kwargs)
+                                          **kwargs)
             except TypeError as e:
                 raise TypeError(
                     'Warning: It looks like your installed version of the '
@@ -114,7 +113,8 @@ class RequestsClient(HTTPClient):
             self._handle_request_error(e)
         return content, status_code
 
-    def _handle_request_error(self, e):
+    @staticmethod
+    def _handle_request_error(e):
         if isinstance(e, requests.exceptions.RequestException):
             msg = ("Unexpected error communicating with Openpay.  "
                    "If this problem persists, let us know at "
@@ -173,7 +173,7 @@ class Urllib2Client(HTTPClient):
                 self._handle_request_error(e)
             return rbody, rcode
         else:
-            req = urllib2.Request(url, post_data, headers)
+            req = urllib.request.Request(url, post_data, headers)
             base64string = encodebytes('%s:%s' % (user, ''))
             auth_string = "Basic %s" % base64string
             auth_string = auth_string.replace('\n', '')
@@ -184,13 +184,13 @@ class Urllib2Client(HTTPClient):
 
             try:
                 ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-                response = urllib2.urlopen(req, context=ctx)
+                response = urllib.request.urlopen(req, context=ctx)
                 rbody = response.read()
                 rcode = response.code
-            except urllib2.HTTPError as e:
+            except urllib.error.HTTPError as e:
                 rcode = e.code
                 rbody = e.read()
-            except (urllib2.URLError, ValueError) as e:
+            except (urllib.error.URLError, ValueError) as e:
                 self._handle_request_error(e)
             return rbody, rcode
 
