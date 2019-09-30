@@ -1,17 +1,14 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-from future.builtins import zip
-from future.builtins import int
-from future.builtins import str
-from future.builtins import super
-
 import datetime
 import os
 import sys
 import time
 import unittest
+from builtins import str, zip
 
+from future.builtins import int, str, super, zip
 from mock import patch
+
+# -*- coding: utf-8 -*-
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import openpay
@@ -46,7 +43,7 @@ class FunctionalTests(OpenpayTestCase):
         self.patched_api_base = patch(
             'openpay.get_api_base',
             lambda: 'https://my-invalid-domain.ireallywontresolve/v1')
-       # get_api_base_mock = self.patched_api_base.start()
+        # get_api_base_mock = self.patched_api_base.start()
         self.patched_api_base.start()
         try:
             self.assertRaises(openpay.error.APIConnectionError,
@@ -91,7 +88,7 @@ class FunctionalTests(OpenpayTestCase):
         # Make sure unicode requests can be sent
         self.assertRaises(openpay.error.InvalidRequestError,
                           openpay.Charge.retrieve_as_merchant,
-                          id=u'☃')
+                          id='☃')
 
     # def test_none_values(self):
     #     customer = openpay.Customer.create(name=None, last_name=None)
@@ -104,6 +101,7 @@ class FunctionalTests(OpenpayTestCase):
 
 class RequestsFunctionalTests(FunctionalTests):
     request_client = openpay.http_client.RequestsClient
+
 
 # Avoid skipTest errors in < 2.7
 if sys.version_info >= (2, 7):
@@ -159,6 +157,7 @@ class CardErrorTest(OpenpayTestCase):
             self.assertEqual(400, e.http_status)
             self.assertTrue(isinstance(e.http_body, str))
             self.assertTrue(isinstance(e.json_body, dict))
+
 
 # Note that these are in addition to the core functional charge tests
 
@@ -250,6 +249,7 @@ class CustomerTest(OpenpayTestCase):
         self.assertEqual(1,
                          len(customer.charges.all().data))
 
+
 #    def test_unset_description(self):
 #        customer = openpay.Customer.create(
 #            name="Miguel", last_name="Lopez",
@@ -266,15 +266,15 @@ class CustomerTest(OpenpayTestCase):
 #        customer = openpay.Customer()
 #        self.assertRaises(ValueError, setattr, customer, "description", "")
 
-    # def test_update_customer_card(self):
-    #     customer = openpay.Customer.all(limit=1).data[0]
-    #     card = customer.cards.create(**DUMMY_CARD)
-    #     print card
-    #     card.name = 'Python bindings test'
-    #     card.save()
+# def test_update_customer_card(self):
+#     customer = openpay.Customer.all(limit=1).data[0]
+#     card = customer.cards.create(**DUMMY_CARD)
+#     print card
+#     card.name = 'Python bindings test'
+#     card.save()
 
-    #     self.assertEqual('Python bindings test',
-    #                      customer.cards.retrieve(card.id).name)
+#     self.assertEqual('Python bindings test',
+#                      customer.cards.retrieve(card.id).name)
 
 
 class CustomerPlanTest(OpenpayTestCase):
@@ -359,6 +359,7 @@ class InvalidRequestErrorTest(OpenpayTestCase):
             openpay.Charge.create()
         except openpay.error.InvalidRequestError as e:
             self.assertEqual(400, e.http_status)
+
 
 class PlanTest(OpenpayTestCase):
 
@@ -610,6 +611,7 @@ class TransferTest(OpenpayTestCase):
         transfers = customer.transfers.all()
         self.assertTrue(isinstance(transfers.data, list))
         self.assertTrue(isinstance(transfers.data[0], openpay.Transfer))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from builtins import hex, str
 
 try:
     import json
@@ -6,16 +6,15 @@ except ImportError:
     import simplejson as json
 
 try:
-    from urllib import quote_plus
+    from urllib.parse import quote_plus
 except ImportError:
     from urllib.parse import quote_plus
 
-from future.builtins import super
-from future.builtins import hex
-from future.builtins import str
+from future.builtins import hex, str, super
+
 import openpay
 from openpay import api, error
-from openpay.util import utf8, logger
+from openpay.util import logger, utf8
 
 
 def convert_to_openpay_object(resp, api_key, item_type=None):
@@ -128,7 +127,7 @@ class BaseObject(dict):
 
         self._transient_values = self._transient_values - set(values)
 
-        for k, v in values.items():
+        for k, v in list(values.items()):
             super(BaseObject, self).__setitem__(
                 k, convert_to_openpay_object(v, api_key))
 
@@ -178,7 +177,7 @@ class BaseObject(dict):
         return json.dumps(self, sort_keys=True, indent=2)
 
     @property
-    def openapay_id(self):
+    def openpay_id(self):
         return self.id
 
 
@@ -330,7 +329,7 @@ class UpdateableAPIResource(APIResource):
             # i.e. as object.metadata = {key: val}
             metadata_update = self.metadata
             keys_to_unset = set(self._previous_metadata.keys()) - \
-                set(self.metadata.keys())
+                            set(self.metadata.keys())
             for key in keys_to_unset:
                 metadata_update[key] = ""
 
@@ -338,7 +337,8 @@ class UpdateableAPIResource(APIResource):
         else:
             return self.serialize(self.metadata)
 
-    def serialize(self, obj):
+    @staticmethod
+    def serialize(obj):
         params = {}
         if obj._unsaved_values:
             for k in obj._unsaved_values:
@@ -355,9 +355,8 @@ class DeletableAPIResource(APIResource):
         self.refresh_from(self.request('delete', self.instance_url(), params))
         return self
 
+
 # API objects
-
-
 class Card(ListableAPIResource, UpdateableAPIResource,
            DeletableAPIResource, CreateableAPIResource):
 
@@ -614,6 +613,7 @@ class Payout(CreateableAPIResource, ListableAPIResource,
         url = "{0}/{1}".format(cls.class_url(), payout_id)
         response, api_key = requestor.request('get', url, params)
         return convert_to_openpay_object(response, api_key, 'payout')
+
 
 class Fee(CreateableAPIResource, ListableAPIResource):
 

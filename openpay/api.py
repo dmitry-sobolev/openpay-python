@@ -1,12 +1,13 @@
-import datetime
 import calendar
-import time
+import datetime
+import json
 # import warnings
 import platform
-import json
+import time
+from builtins import object, str
 
 import openpay
-from openpay import error, http_client, version, util
+from openpay import error, http_client, util, version
 
 
 def _encode_datetime(dttime):
@@ -19,7 +20,7 @@ def _encode_datetime(dttime):
 
 
 def _api_encode(data):
-    for key, value in data.iteritems():
+    for key, value in list(data.items()):
         key = util.utf8(key)
         if value is None:
             continue
@@ -30,7 +31,7 @@ def _api_encode(data):
                 yield ("%s[]" % (key,), util.utf8(subvalue))
         elif isinstance(value, dict):
             subdict = dict(('%s[%s]' % (key, subkey), subvalue) for
-                           subkey, subvalue in value.iteritems())
+                           subkey, subvalue in list(value.items()))
             for subkey, subvalue in _api_encode(subdict):
                 yield (subkey, subvalue)
         elif isinstance(value, datetime.datetime):
@@ -75,7 +76,8 @@ class APIClient(object):
         resp = self.interpret_response(rbody, rcode)
         return resp, my_api_key
 
-    def handle_api_error(self, rbody, rcode, resp):
+    @staticmethod
+    def handle_api_error(rbody, rcode, resp):
         err = resp
 
         if rcode in [400, 404]:

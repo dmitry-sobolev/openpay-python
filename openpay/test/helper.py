@@ -1,31 +1,30 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-from future.builtins import super
-from future.builtins import range
-from future.builtins import str
-
-import time
 import datetime
 import os
 import random
 import re
 import string
 import sys
+import time
 import unittest
+from builtins import str
 
-from mock import patch, Mock
+from future.builtins import range, str, super
+from mock import Mock, patch
 
 import openpay
 
 
-def generate_order_id():
+# -*- coding: utf-8 -*-
 
+
+def generate_order_id():
     order_id = 'oid-test-{0}-{1}'.format(
         random.randint(1, 3000), str(time.time())[7:])
     if len(order_id) > 20:
         order_id = order_id[:20]
 
     return order_id
+
 
 NOW = datetime.datetime.now()
 
@@ -94,14 +93,14 @@ class OpenpayTestCase(unittest.TestCase):
         api_base = os.environ.get('OPENPAY_API_BASE')
         if api_base:
             openpay.api_base = api_base
-        #Sandbox
+        # Sandbox
         openpay.api_key = os.environ.get(
             'OPENPAY_API_KEY', 'sk_10d37cc4da8e4ffd902cdf62e37abd1b')
         openpay.merchant_id = "mynvbjhtzxdyfewlzmdo"
-        #Dev
-        #openpay.api_key = os.environ.get(
+        # Dev
+        # openpay.api_key = os.environ.get(
         #    'OPENPAY_API_KEY', '68df281c16184d47bb773d70abd4191b')
-        #openpay.merchant_id = "m4se8bd4fef1mkzk6d1b"
+        # openpay.merchant_id = "m4se8bd4fef1mkzk6d1b"
         openpay.verify_ssl_certs = False
 
     def tearDown(self):

@@ -1,14 +1,12 @@
-from __future__ import print_function
-from __future__ import unicode_literals
 from future.builtins import super
-#import json
-import openpay
-#from openpay import util
 
-from openpay.test.helper import (
-    OpenpayUnitTestCase, OpenpayApiTestCase,
-    MySingleton, MyListable, MyCreatable, MyUpdateable, MyDeletable,
-    MyResource)
+# import json
+import openpay
+from openpay.test.helper import (MyCreatable, MyDeletable, MyListable, MyResource, MySingleton, MyUpdateable,
+                                 OpenpayApiTestCase, OpenpayUnitTestCase)
+
+
+# from openpay import util
 
 
 class BaseObjectTests(OpenpayUnitTestCase):
@@ -78,21 +76,21 @@ class BaseObjectTests(OpenpayUnitTestCase):
         self.assertEqual(4, obj.trans)
         self.assertEqual({'amount': 42}, obj._previous_metadata)
 
-#    def test_refresh_from_nested_object(self):
-#        obj = openpay.resource.BaseObject.construct_from(
-#            SAMPLE_INVOICE, 'key')
-#
-#        self.assertEqual(1, len(obj.lines.subscriptions))
-#        self.assertTrue(
-#            isinstance(obj.lines.subscriptions[0],
-#                       openpay.resource.BaseObject))
-#        self.assertEqual('month', obj.lines.subscriptions[0].plan.interval)
+    #    def test_refresh_from_nested_object(self):
+    #        obj = openpay.resource.BaseObject.construct_from(
+    #            SAMPLE_INVOICE, 'key')
+    #
+    #        self.assertEqual(1, len(obj.lines.subscriptions))
+    #        self.assertTrue(
+    #            isinstance(obj.lines.subscriptions[0],
+    #                       openpay.resource.BaseObject))
+    #        self.assertEqual('month', obj.lines.subscriptions[0].plan.interval)
 
-#    def test_to_json(self):
-#        obj = openpay.resource.BaseObject.construct_from(
-#            SAMPLE_INVOICE, 'key')
-#
-#        self.check_invoice_data(json.loads(str(obj)))
+    #    def test_to_json(self):
+    #        obj = openpay.resource.BaseObject.construct_from(
+    #            SAMPLE_INVOICE, 'key')
+    #
+    #        self.check_invoice_data(json.loads(str(obj)))
 
     def check_invoice_data(self, data):
         # Check rough structure
