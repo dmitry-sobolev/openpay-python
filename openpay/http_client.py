@@ -79,7 +79,7 @@ class RequestsClient(HTTPClient):
 
         if self._verify_ssl_certs:
             kwargs['verify'] = os.path.join(
-                os.path.dirname(__file__), 'data/test_ca-certificates.crt')
+                os.path.dirname(__file__), 'data/ca-certificates.crt')
         else:
             kwargs['verify'] = False
 
