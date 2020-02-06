@@ -8,6 +8,7 @@ from builtins import object, str
 
 import openpay
 from openpay import error, http_client, util, version
+from .models import ErrorModel
 
 
 def _encode_datetime(dttime):
@@ -78,25 +79,21 @@ class APIClient(object):
 
     @staticmethod
     def handle_api_error(rbody, rcode, resp):
-        err = resp
+        err = ErrorModel(resp)
 
         if rcode in [400, 404]:
-            msg = err.get('description') + ", error code: " + str(
-                resp['error_code'])
+            msg = f'{err.description}, error_code: {err.error_code}'
             raise error.InvalidRequestError(
                 msg, err.get('request_id'), rbody, rcode, resp)
         elif rcode == 401:
             raise error.AuthenticationError(
-                err.get('description'), rbody, rcode, resp)
+                err.description, err, rbody, rcode, resp)
         elif rcode == 402:
             raise error.CardError(
-                err.get('description'), err.get('request_id'),
-                err.get('error_code'), rbody, rcode, resp)
+                err.description, err, err.request_id,
+                err.error_code, rbody, rcode, resp)
         else:
-            raise error.APIError(
-                "{0}, error code: {1}".format(err.get(
-                    'description'),
-                    resp['error_code']), rbody, rcode, resp)
+            raise error.APIError(f'{err.description}, error_code: {err.error_code}', err, rbody, rcode, resp)
 
     def request_raw(self, method, url, params=None):
         """
@@ -174,7 +171,7 @@ class APIClient(object):
                 rbody = json.dumps({})
 
             resp = json.loads(rbody)
-        except Exception:
+        except Exception as e:
             raise error.APIError(
                 "Invalid response body from API: %s "
                 "(HTTP response code was %d)" % (rbody, rcode),

@@ -1,9 +1,17 @@
+from .models import ErrorModel
+
+
+class ErrorCodes:
+    SVV2_IS_NOT_PROVIDED = 2006
+
+
 # Exceptions
 class OpenpayError(Exception):
+    prefix = 'Openpay'
 
-    def __init__(self, message=None, http_body=None, http_status=None,
+    def __init__(self, message=None, err: ErrorModel = None, http_body=None, http_status=None,
                  json_body=None):
-        super(OpenpayError, self).__init__(message)
+        super(OpenpayError, self).__init__(f'{self.prefix}: {message}')
 
         if http_body and hasattr(http_body, 'decode'):
             try:
@@ -16,6 +24,7 @@ class OpenpayError(Exception):
 
         self.http_status = http_status
         self.json_body = json_body
+        self.err = err
 
 
 class APIError(OpenpayError):
@@ -28,9 +37,9 @@ class APIConnectionError(OpenpayError):
 
 class CardError(OpenpayError):
 
-    def __init__(self, message, param, code, http_body=None,
+    def __init__(self, message, err: ErrorModel, param, code, http_body=None,
                  http_status=None, json_body=None):
-        super(CardError, self).__init__(message,
+        super(CardError, self).__init__(message, err,
                                         http_body, http_status, json_body)
 
         self.param = param
@@ -39,10 +48,10 @@ class CardError(OpenpayError):
 
 class InvalidRequestError(OpenpayError):
 
-    def __init__(self, message, param, http_body=None,
+    def __init__(self, message, err: ErrorModel, param, http_body=None,
                  http_status=None, json_body=None):
         super(InvalidRequestError, self).__init__(
-            message, http_body, http_status, json_body)
+            message, err, http_body, http_status, json_body)
         self.param = param
 
 

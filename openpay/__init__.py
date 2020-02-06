@@ -1,6 +1,7 @@
 from builtins import str
 
 from future.builtins import str
+from .error import ErrorCodes
 
 api_key = None
 merchant_id = None

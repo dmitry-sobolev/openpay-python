@@ -17,7 +17,11 @@ os.chdir(os.path.abspath(path))
 requests = 'requests >= 2.1.0'
 if sys.version_info < (2, 6):
     requests += ', < 2.1.0'
-install_requires = [requests, "future>=0.17.1"]
+install_requires = [
+    requests,
+    "future>=0.17.1",
+    "marshmallow==2.16.3"
+]
 
 
 # Don't import openpay module here, since deps may not be installed
