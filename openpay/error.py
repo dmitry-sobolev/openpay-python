@@ -3,6 +3,7 @@ from .models import ErrorModel
 
 class ErrorCodes:
     SVV2_IS_NOT_PROVIDED = 2006
+    INSUFFICIENT_FUNDS = 3003
 
 
 # Exceptions
