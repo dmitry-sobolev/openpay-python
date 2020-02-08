@@ -84,7 +84,7 @@ class APIClient(object):
         if rcode in [400, 404]:
             msg = f'{err.description}, error_code: {err.error_code}'
             raise error.InvalidRequestError(
-                msg, err.get('request_id'), rbody, rcode, resp)
+                msg, err, err.request_id, rbody, rcode, resp)
         elif rcode == 401:
             raise error.AuthenticationError(
                 err.description, err, rbody, rcode, resp)
