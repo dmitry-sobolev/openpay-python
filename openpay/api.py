@@ -68,11 +68,11 @@ class APIClient(object):
         from openpay import verify_ssl_certs
         openpay.test_mode = test_mode
 
-        self._client = client or http_client.new_default_http_client(
+        self._client = client or http_client.HttpxClient(
             verify_ssl_certs=verify_ssl_certs)
 
-    def request(self, method, url, params=None):
-        rbody, rcode, my_api_key = self.request_raw(
+    async def request(self, method, url, params=None):
+        rbody, rcode, my_api_key = await self.request_raw(
             method.lower(), url, params)
         resp = self.interpret_response(rbody, rcode)
         return resp, my_api_key
@@ -95,7 +95,7 @@ class APIClient(object):
         else:
             raise error.APIError(f'{err.description}, error_code: {err.error_code}', err, rbody, rcode, resp)
 
-    def request_raw(self, method, url, params=None):
+    async def request_raw(self, method, url, params=None):
         """
         Mechanism for issuing an API call
         """
@@ -153,7 +153,7 @@ class APIClient(object):
         if api_version is not None:
             headers['Openpay-Version'] = api_version
 
-        rbody, rcode = self._client.request(
+        rbody, rcode = await self._client.request(
             method, abs_url, headers, post_data, user=my_api_key)
 
         util.logger.info(

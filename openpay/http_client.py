@@ -4,6 +4,7 @@ import textwrap
 import warnings
 from builtins import bytes, object, str
 
+import httpx
 from future.builtins import bytes, str
 
 from openpay import error
@@ -42,25 +43,6 @@ except ImportError:
     urlfetch = None
 
 
-def new_default_http_client(*args, **kwargs):
-    if urlfetch:
-        impl = UrlFetchClient
-    elif requests:
-        impl = RequestsClient
-    elif pycurl:
-        impl = PycurlClient
-    else:
-        impl = Urllib2Client
-        warnings.warn(
-            "Warning: the Openpay library is falling back to urllib2/urllib "
-            "because neither requests nor pycurl are installed. "
-            "urllib2's SSL implementation doesn't verify server "
-            "certificates. For improved security, we suggest installing "
-            "requests.")
-
-    return impl(*args, **kwargs)
-
-
 class HTTPClient(object):
 
     def __init__(self, verify_ssl_certs=True):
@@ -69,6 +51,42 @@ class HTTPClient(object):
     def request(self, method, url, headers, post_data=None, user=None):
         raise NotImplementedError(
             'HTTPClient subclasses must implement `request`')
+
+
+class HttpxClient(HTTPClient):
+    name = 'httpx'
+
+    async def request(self, method, url, headers, post_data=None, user=None):
+        kwargs = {}
+
+        if self._verify_ssl_certs:
+            kwargs['verify'] = os.path.join(
+                os.path.dirname(__file__), 'data/ca-certificates.crt')
+        else:
+            kwargs['verify'] = False
+
+        req = httpx.Request(method, url, headers=headers, data=post_data)
+
+        async with httpx.AsyncClient(
+                timeout=80, auth=(user, ''), **kwargs
+        ) as client:
+            try:
+                res = await client.send(req)
+            except httpx.HTTPError:
+                raise error.APIConnectionError(
+                    "Unexpected error communicating with Openpay.  "
+                    "If this problem persists, let us know at "
+                    "support@openpay.mx."
+                )
+            except Exception:
+                raise error.APIConnectionError(
+                    "Unexpected error communicating with Openpay. "
+                    "It looks like there's probably a configuration "
+                    "issue locally.  If this problem persists, let us "
+                    "know at support@openpay.mx."
+                )
+
+        return res.content, res.status_code
 
 
 class RequestsClient(HTTPClient):

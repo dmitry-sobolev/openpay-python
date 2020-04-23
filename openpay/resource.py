@@ -133,12 +133,12 @@ class BaseObject(dict):
 
         self._previous_metadata = values.get('metadata')
 
-    def request(self, method, url, params=None):
+    async def request(self, method, url, params=None):
         if params is None:
             params = self._retrieve_params
 
         requestor = api.APIClient(self.api_key)
-        response, api_key = requestor.request(method, url, params)
+        response, api_key = await requestor.request(method, url, params)
 
         if isinstance(response, list):
             for item in response:
@@ -184,13 +184,13 @@ class BaseObject(dict):
 class APIResource(BaseObject):
 
     @classmethod
-    def retrieve(cls, id, api_key=None, **params):
+    async def retrieve(cls, id, api_key=None, **params):
         instance = cls(id, api_key, **params)
-        instance.refresh()
+        await instance.refresh()
         return instance
 
-    def refresh(self):
-        self.refresh_from(self.request('get', self.instance_url()))
+    async def refresh(self):
+        self.refresh_from(await self.request('get', self.instance_url()))
         return self
 
     @classmethod
@@ -205,21 +205,21 @@ class APIResource(BaseObject):
     def class_url(cls, params=None):
         merchant_id = openpay.merchant_id
         cls_name = cls.class_name()
-        if params and 'customer' in list(params.keys()):
-            return "/v1/{0}/customers/{1}/{2}s".format(
-                merchant_id, params.get('customer'), cls_name)
+        if params and 'customer' in params:
+            return (f"/v1/{merchant_id}/customers"
+                    f"/{params['customer']}/{cls_name}s")
         else:
-            return "/v1/%s/%ss" % (merchant_id, cls_name)
+            return f"/v1/{merchant_id}/{cls_name}s"
 
     def instance_url(self):
         id = self.get('id')
         if not id:
             raise error.InvalidRequestError(
                 'Could not determine which URL to request: %s instance '
-                'has invalid ID: %r' % (type(self).__name__, id), 'id')
+                'has invalid ID: %r' % (type(self).__name__, id), None, 'id')
         id = utf8(id)
         params = None
-        if 'customer' in list(self._retrieve_params.keys()):
+        if 'customer' in self._retrieve_params:
             params = {'customer': self._retrieve_params.get('customer')}
 
         base = self.class_url(params)
@@ -229,19 +229,19 @@ class APIResource(BaseObject):
 
 class ListObject(BaseObject):
 
-    def all(self, **params):
-        return self.request('get', self['url'], params)
+    async def all(self, **params):
+        return await self.request('get', self['url'], params)
 
-    def create(self, **params):
-        return self.request('post', self['url'], params)
+    async def create(self, **params):
+        return await self.request('post', self['url'], params)
 
-    def retrieve(self, id, **params):
+    async def retrieve(self, id, **params):
         base = self.get('url')
         id = utf8(id)
         extn = quote_plus(id)
         url = "%s/%s" % (base, extn)
 
-        return self.request('get', url, params)
+        return await self.request('get', url, params)
 
 
 class SingletonAPIResource(APIResource):
@@ -265,11 +265,11 @@ class SingletonAPIResource(APIResource):
 class ListableAPIResource(APIResource):
 
     @classmethod
-    def all(cls, api_key=None, **params):
+    async def all(cls, api_key=None, **params):
         requestor = api.APIClient(api_key)
         url = cls.class_url(params)
 
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = await requestor.request('get', url, params)
         klass_name = cls.__name__.lower()
         for item in response:
             if 'object' not in list(item.keys()):
@@ -289,21 +289,21 @@ class ListableAPIResource(APIResource):
 class CreateableAPIResource(APIResource):
 
     @classmethod
-    def create(cls, api_key=None, **params):
+    async def create(cls, api_key=None, **params):
         requestor = api.APIClient(api_key)
         url = cls.class_url(params)
 
         if "clean_params" in dir(cls):
             params = cls.clean_params(params)
 
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = await requestor.request('post', url, params)
         klass_name = cls.__name__.lower()
         return convert_to_openpay_object(response, api_key, klass_name)
 
 
 class UpdateableAPIResource(APIResource):
 
-    def save(self):
+    async def save(self):
         updated_params = self.serialize(self)
 
         if getattr(self, 'metadata', None):
@@ -317,8 +317,9 @@ class UpdateableAPIResource(APIResource):
             else:
                 updated_params.update({'status': None})
 
-            self.refresh_from(self.request('put', self.instance_url(),
-                                           updated_params))
+            self.refresh_from(await self.request(
+                'put', self.instance_url(), updated_params
+            ))
         else:
             logger.debug("Trying to save already saved object %r", self)
         return self
@@ -351,8 +352,10 @@ class UpdateableAPIResource(APIResource):
 
 class DeletableAPIResource(APIResource):
 
-    def delete(self, **params):
-        self.refresh_from(self.request('delete', self.instance_url(), params))
+    async def delete(self, **params):
+        self.refresh_from(await self.request(
+            'delete', self.instance_url(), params
+        ))
         return self
 
 
@@ -360,21 +363,23 @@ class DeletableAPIResource(APIResource):
 class Card(ListableAPIResource, UpdateableAPIResource,
            DeletableAPIResource, CreateableAPIResource):
 
-    @classmethod
-    def class_url(cls, params=None):
-        merchant_id = openpay.merchant_id
-        cls_name = cls.class_name()
-        if params and 'customer' in list(params.keys()):
-            return "/v1/{0}/customers/{1}/{2}s".format(
-                merchant_id, params.get('customer'), cls_name)
-        else:
-            return "/v1/%s/%ss" % (merchant_id, cls_name)
-
     def instance_url(self):
         self.id = utf8(self.id)
-        self.customer = utf8(getattr(self, 'customer', self.customer_id))
+        if not id:
+            raise error.InvalidRequestError(
+                'Could not determine which URL to request: %s instance '
+                'has invalid ID: %r' % (type(self).__name__, id), None, 'id')
+
+        params = None
+        customer = self.get('customer', self.get('customer_id'))
+
+        if customer is not None:
+            params = {'customer': utf8(customer)}
+
+        cls_url = Card.class_url(params)
         extn = quote_plus(self.id)
-        return "%s/%s/cards/%s" % (Customer.class_url(), self.customer, extn)
+
+        return f"{cls_url}/{extn}"
 
     @classmethod
     def retrieve(cls, id, api_key=None, **params):
@@ -396,58 +401,52 @@ class Charge(CreateableAPIResource, ListableAPIResource,
 
         return params
 
-    @classmethod
-    def class_url(cls, params=None):
-        merchant_id = openpay.merchant_id
-        cls_name = cls.class_name()
-        if params and 'customer' in params:
-            return "/v1/{0}/customers/{1}/{2}s".format(
-                merchant_id, params['customer'], cls_name)
-        else:
-            return "/v1/%s/%ss" % (merchant_id, cls_name)
-
     def instance_url(self):
         self.id = utf8(self.id)
+        if not id:
+            raise error.InvalidRequestError(
+                'Could not determine which URL to request: %s instance '
+                'has invalid ID: %r' % (type(self).__name__, id), None, 'id')
 
-        if getattr(self, '_as_merchant', False):
-            extn = quote_plus(self.id)
-            url = "{0}/{1}".format(Charge.class_url(), extn)
-        else:
-            self.customer = utf8(self.customer_id)
-            extn = quote_plus(self.id)
-            url = "%s/%s/charges/%s" % (
-                Customer.class_url(), self.customer, extn)
+        params = None
+        customer = self.get('customer', self.get('customer_id'))
 
-        return url
+        if customer is not None:
+            params = {'customer': utf8(customer)}
 
-    def refund(self, **params):
+        cls_url = Charge.class_url(params)
+        extn = quote_plus(self.id)
+
+        return f"{cls_url}/{extn}"
+
+    async def refund(self, **params):
         self._as_merchant = params.pop('merchant', False)
         url = self.instance_url() + '/refund'
-        self.refresh_from(self.request('post', url, params))
+        self.refresh_from(await self.request('post', url, params))
         return self
 
-    def capture(self, **params):
+    async def capture(self, **params):
         self._as_merchant = params.pop('merchant', False)
         url = self.instance_url() + '/capture'
-        self.refresh_from(self.request('post', url, params))
+        self.refresh_from(await self.request('post', url, params))
         return self
 
-    def update_dispute(self, **params):
+    async def update_dispute(self, **params):
         requestor = api.APIClient(self.api_key)
         url = self.instance_url() + '/dispute'
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = await requestor.request('post', url, params)
         self.refresh_from({'dispute': response}, api_key, True)
         return self.dispute
 
-    def close_dispute(self):
+    async def close_dispute(self):
         requestor = api.APIClient(self.api_key)
         url = self.instance_url() + '/dispute/close'
-        response, api_key = requestor.request('post', url, {})
+        response, api_key = await requestor.request('post', url, {})
         self.refresh_from({'dispute': response}, api_key, True)
         return self.dispute
 
     @classmethod
-    def as_merchant(cls):
+    async def as_merchant(cls):
 
         params = {}
         if hasattr(cls, 'api_key'):
@@ -457,26 +456,28 @@ class Charge(CreateableAPIResource, ListableAPIResource,
 
         requestor = api.APIClient(api_key)
         url = cls.class_url()
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = await requestor.request('get', url, params)
         return convert_to_openpay_object(response, api_key, 'charge')
 
     @classmethod
-    def retrieve_as_merchant(cls, id):
+    async def retrieve_as_merchant(cls, id):
         params = {}
         api_key = getattr(cls, 'api_key', openpay.api_key)
         cls._as_merchant = True
         requestor = api.APIClient(api_key)
         uid = utf8(id)
         url = "%s/%s" % (cls.class_url(), quote_plus(uid))
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = await requestor.request('get', url, params)
         return convert_to_openpay_object(response, api_key, 'charge')
 
     @classmethod
-    def create_as_merchant(cls, **params):
+    async def create_as_merchant(cls, **params):
         api_key = getattr(cls, 'api_key', openpay.api_key)
         requestor = api.APIClient(api_key)
         # charge over merchant
-        response, api_key = requestor.request('post', cls.class_url(), params)
+        response, api_key = await requestor.request(
+            'post', cls.class_url(), params
+        )
         return convert_to_openpay_object(response, api_key, 'charge')
 
 
@@ -598,27 +599,29 @@ class Payout(CreateableAPIResource, ListableAPIResource,
              DeletableAPIResource):
 
     @classmethod
-    def create_as_merchant(cls, **params):
+    async def create_as_merchant(cls, **params):
         api_key = getattr(cls, 'api_key', openpay.api_key)
         requestor = api.APIClient(api_key)
-        response, api_key = requestor.request('post', cls.class_url(), params)
+        response, api_key = await requestor.request(
+            'post', cls.class_url(), params
+        )
         return convert_to_openpay_object(response, api_key, 'payout')
 
     @classmethod
-    def retrieve_as_merchant(cls, payout_id):
+    async def retrieve_as_merchant(cls, payout_id):
         params = {}
         api_key = getattr(cls, 'api_key', openpay.api_key)
 
         requestor = api.APIClient(api_key)
         url = "{0}/{1}".format(cls.class_url(), payout_id)
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = await requestor.request('get', url, params)
         return convert_to_openpay_object(response, api_key, 'payout')
 
 
 class Fee(CreateableAPIResource, ListableAPIResource):
 
     @classmethod
-    def refund(cls, fee_id, **params):
+    async def refund(cls, fee_id, **params):
         if hasattr(cls, 'api_key'):
             api_key = cls.api_key
         else:
@@ -627,7 +630,7 @@ class Fee(CreateableAPIResource, ListableAPIResource):
         requestor = api.APIClient(api_key)
         url = cls.class_url()
         url = "{0}/{1}/refund".format(url, fee_id)
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = await requestor.request('post', url, params)
         return convert_to_openpay_object(response, api_key, 'fee')
 
 

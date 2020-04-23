@@ -86,7 +86,7 @@ class ErrorSchema(Schema):
     description = fields.Str(required=False, allow_none=True)
     http_code = fields.Int(required=True, allow_none=False)
     error_code = fields.Int(required=True, allow_none=False)
-    request_id = fields.Str(required=True, allow_none=False)
+    request_id = fields.Str(required=False, allow_none=True)
     fraud_rules = fields.List(fields.Str(), required=False, allow_none=True)
 
 
